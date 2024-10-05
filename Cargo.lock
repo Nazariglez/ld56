@@ -1293,6 +1293,9 @@ dependencies = [
  "num",
  "rand",
  "rkit",
+ "rustc-hash 2.0.0",
+ "strum",
+ "strum_macros",
 ]
 
 [[package]]

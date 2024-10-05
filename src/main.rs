@@ -2,15 +2,18 @@ mod params;
 mod souls;
 mod state;
 
+use crate::params::Blessing;
 use crate::souls::SoulKind;
 use crate::state::{State, MAP_SIZE, RESOLUTION};
-use rkit::app::{window_size, window_width};
+use rkit::app::{window_height, window_size, window_width};
 use rkit::draw::create_draw_2d;
 use rkit::gfx::Color;
 use rkit::input::KeyCode::WakeUp;
 use rkit::math::{vec2, Vec2};
 use rkit::{gfx, time};
 use std::fmt::format;
+use strum::IntoEnumIterator;
+use strum_macros::EnumIter;
 
 const LUMINAL_COLOR: Color = Color::rgb(0.0, 0.793, 1.0);
 const SHADOW_COLOR: Color = Color::rgb(0.612, 0.029, 0.029);
@@ -145,6 +148,47 @@ Total: {}",
     // draw.rect(camera_bounds.origin, camera_bounds.size * camera_ratio)
     //     .stroke_color(Color::GRAY)
     //     .stroke(3.0);
+
+    let box_size = vec2(270.0, 20.0);
+    let len = Blessing::iter().len();
+    draw.rect(Vec2::ZERO, vec2(box_size.x, box_size.y * len as f32 + 10.0))
+        .corner_radius(5.0)
+        .anchor(vec2(0.0, 1.0))
+        .translate(vec2(10.0, window_height() - 10.0))
+        .alpha(0.1)
+        .color(Color::MAGENTA);
+
+    let mut y = window_height() - 20.0;
+    Blessing::iter().enumerate().rev().for_each(|(n, b)| {
+        let lvl = state.blessings.level(&b);
+        let unlocked = lvl > 0;
+        let can_unlock = state.blessings.can_unlock(b) && state.energy >= b.price(lvl + 1);
+
+        let color = if unlocked && can_unlock {
+            Color::ORANGE
+        } else if unlocked {
+            Color::WHITE
+        } else {
+            Color::GRAY.with_alpha(0.6)
+        };
+
+        let price = b.price(lvl + 1);
+
+        draw.text(&format!(
+            "{}. {:?}: {} (e:{})",
+            n,
+            b,
+            state.blessings.level(&b),
+            price
+        ))
+        .anchor(vec2(0.0, 1.0))
+        .translate(vec2(20.0, y))
+        .color(color)
+        .size(10.0);
+
+        y -= box_size.y;
+        // draw.rect(vec2(20.0, y - 40.0), vec2())
+    });
 
     gfx::render_to_frame(&draw).unwrap();
 }

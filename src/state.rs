@@ -1,12 +1,15 @@
-use crate::params::{Params, PARAMS_END, PARAMS_START};
+use crate::params::{Blessing, Blessings, Params, PARAMS_END, PARAMS_START};
 use crate::souls::{Soul, SoulKind, VisualData};
 use rkit::app::window_size;
 use rkit::draw::{Camera2D, Draw2D, ScreenMode};
-use rkit::input::{is_key_down, is_mouse_btn_down, mouse_position, KeyCode, MouseButton};
+use rkit::input::{
+    is_key_down, is_key_pressed, is_mouse_btn_down, mouse_position, KeyCode, MouseButton,
+};
 use rkit::math::{vec2, Vec2};
 use rkit::random;
 use rkit::time;
 use std::f32::consts::TAU;
+use strum::IntoEnumIterator;
 
 pub const MAP_SIZE: Vec2 = Vec2::splat(1000.0);
 pub const RESOLUTION: Vec2 = Vec2::new(960.0, 540.0);
@@ -21,6 +24,7 @@ pub struct State {
     pub souls: Vec<Soul>,
     pub ids: u64,
 
+    pub blessings: Blessings,
     pub params: Params,
 
     // mouse
@@ -42,13 +46,16 @@ impl State {
     pub fn new() -> Result<Self, String> {
         let camera = Camera2D::new(window_size(), ScreenMode::AspectFit(RESOLUTION));
         let position = MAP_SIZE * 0.5;
-        let params = PARAMS_END;
+        let blessings = Blessings::new();
+        let params = blessings.params();
+
         Ok(Self {
             camera,
             position,
             souls: vec![],
             ids: 0,
 
+            blessings,
             params,
 
             mouse_radius: params.sacred_radius,
@@ -144,6 +151,36 @@ impl State {
             self.params.karma_expire_rate,
             self.params.eternals,
         );
+
+        // TODO remove temporal upgrades
+        Blessing::iter().enumerate().for_each(|(n, b)| {
+            let key = match n {
+                0 => Some(KeyCode::Digit0),
+                1 => Some(KeyCode::Digit1),
+                2 => Some(KeyCode::Digit2),
+                3 => Some(KeyCode::Digit3),
+                4 => Some(KeyCode::Digit4),
+                5 => Some(KeyCode::Digit5),
+                6 => Some(KeyCode::Digit6),
+                7 => Some(KeyCode::Digit7),
+                8 => Some(KeyCode::Digit8),
+                9 => Some(KeyCode::Digit9),
+                _ => None,
+            };
+
+            if let Some(k) = key {
+                let lvl = self.blessings.level(&b);
+                let can_unlock = self.blessings.can_unlock(b) && self.energy >= b.price(lvl + 1);
+                if can_unlock && is_key_pressed(k) {
+                    let v = self.blessings.unlock(b);
+                    if !v {
+                        println!("Something went wrong... {:?}: {}", b, lvl);
+                    } else {
+                        self.params = self.blessings.params();
+                    }
+                }
+            }
+        })
     }
 
     pub fn apply_camera(&self, draw: &mut Draw2D) {
