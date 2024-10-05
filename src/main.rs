@@ -3,7 +3,7 @@ mod state;
 
 use crate::souls::SoulKind;
 use crate::state::{State, MAP_SIZE, RESOLUTION};
-use rkit::app::window_size;
+use rkit::app::{window_size, window_width};
 use rkit::draw::create_draw_2d;
 use rkit::gfx::Color;
 use rkit::input::KeyCode::WakeUp;
@@ -113,6 +113,12 @@ fn update(state: &mut State) {
     ))
     .position(vec2(10.0, 30.0))
     .size(10.0);
+
+    draw.text(&format!("Spiritual Energy: {}", state.energy))
+        .size(12.0)
+        .anchor(vec2(1.0, 0.0))
+        .h_align_right()
+        .translate(vec2(window_width() - 10.0, 20.0));
 
     // draw.rect(camera_bounds.origin, camera_bounds.size * camera_ratio)
     //     .stroke_color(Color::GRAY)

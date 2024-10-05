@@ -45,6 +45,7 @@ pub struct Soul {
     pub karma: f32,
     pub pos: Vec2,
     pub is_following: bool,
+    pub energy_timer: f32,
     pub visuals: VisualData,
 }
 

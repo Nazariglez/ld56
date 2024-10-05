@@ -16,7 +16,7 @@ const KARMA_CHANGE_RATE: f32 = 0.1;
 const KARMA_CHANGE_RADIUS: f32 = 40.0;
 const KARMA_EXPIRE_RATE: f32 = 0.01;
 const INITIAL_SPAWN_TIME: f32 = 20.0;
-const ENERGY_COLLECTION_TIME: f32 = 2.0;
+const ENERGY_COLLECTION_TIME: f32 = 3.0;
 
 pub struct State {
     pub camera: Camera2D,
@@ -37,7 +37,6 @@ pub struct State {
     // stats
     pub energy: u64,
     pub energy_time: f32,
-    pub energy_timer: f32,
 }
 
 impl State {
@@ -60,7 +59,6 @@ impl State {
 
             energy: 0,
             energy_time: ENERGY_COLLECTION_TIME,
-            energy_timer: ENERGY_COLLECTION_TIME,
         })
     }
 
@@ -83,6 +81,7 @@ impl State {
                 karma,
                 pos,
                 is_following: false,
+                energy_timer: ENERGY_COLLECTION_TIME,
                 visuals: VisualData::new(),
             });
             self.ids += 1;
@@ -96,25 +95,6 @@ impl State {
         self.update_camera(dt);
         self.is_guiding = is_guiding_souls();
 
-        // update entities positions
-        self.souls.iter_mut().for_each(|s| {
-            s.is_following = false;
-
-            if self.is_guiding
-                && matches!(s.kind(), SoulKind::Luminal)
-                && is_close(s.pos, self.mouse_pos, self.mouse_radius)
-            {
-                s.is_following = true;
-                s.pos = move_towards(s.pos, self.mouse_pos, FOLLOW_SPEED * dt);
-            }
-
-            s.idle_movement(elapsed, dt)
-        });
-        avoid_overlap(&mut self.souls, GRID_SIZE);
-
-        // update entities karma
-        update_karma(&mut self.souls, dt, KARMA_CHANGE_RADIUS, KARMA_CHANGE_RATE);
-
         self.spawn_timer -= dt;
         if self.spawn_timer <= 0.0 {
             self.spawn_time = (self.spawn_time - 0.5).max(5.0);
@@ -122,6 +102,31 @@ impl State {
             self.spawn_num = (self.spawn_num + 1).min(20);
             self.spawn_souls(self.spawn_num, Some(SoulKind::Neutral));
         }
+
+        // update entities positions
+        self.souls.iter_mut().for_each(|s| {
+            s.is_following = false;
+
+            let is_luminal = matches!(s.kind(), SoulKind::Luminal);
+            if self.is_guiding && is_luminal && is_close(s.pos, self.mouse_pos, self.mouse_radius) {
+                s.is_following = true;
+                s.pos = move_towards(s.pos, self.mouse_pos, FOLLOW_SPEED * dt);
+            }
+
+            s.idle_movement(elapsed, dt);
+
+            if is_luminal {
+                s.energy_timer -= dt;
+                if s.energy_timer <= 0.0 {
+                    s.energy_timer = self.energy_time;
+                    self.energy += 1; // TODO this must be parametrized
+                }
+            }
+        });
+        avoid_overlap(&mut self.souls, GRID_SIZE);
+
+        // update entities karma
+        update_karma(&mut self.souls, dt, KARMA_CHANGE_RADIUS, KARMA_CHANGE_RATE);
     }
 
     pub fn apply_camera(&self, draw: &mut Draw2D) {
