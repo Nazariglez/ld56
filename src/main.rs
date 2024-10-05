@@ -76,10 +76,10 @@ fn update(state: &mut State) {
     } else {
         (Color::YELLOW, 0.05)
     };
-    draw.circle(state.mouse_radius)
+    draw.circle(state.params.sacred_radius)
         .color(color)
         .alpha(alpha)
-        .position(state.mouse_pos - state.mouse_radius);
+        .position(state.mouse_pos - state.params.sacred_radius);
 
     gfx::render_to_frame(&draw).unwrap();
 

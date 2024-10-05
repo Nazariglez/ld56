@@ -1,6 +1,6 @@
 use crate::params::{Blessing, Blessings, Params, PARAMS_END, PARAMS_START};
 use crate::souls::{Soul, SoulKind, VisualData};
-use rkit::app::window_size;
+use rkit::app::{window_height, window_size};
 use rkit::draw::{Camera2D, Draw2D, ScreenMode};
 use rkit::input::{
     is_key_down, is_key_pressed, is_mouse_btn_down, mouse_position, KeyCode, MouseButton,
@@ -28,7 +28,6 @@ pub struct State {
     pub params: Params,
 
     // mouse
-    pub mouse_radius: f32,
     pub mouse_pos: Vec2,
     pub is_guiding: bool,
 
@@ -39,7 +38,6 @@ pub struct State {
 
     // stats
     pub energy: u64,
-    pub energy_time: f32,
 }
 
 impl State {
@@ -58,7 +56,6 @@ impl State {
             blessings,
             params,
 
-            mouse_radius: params.sacred_radius,
             mouse_pos: Vec2::ZERO,
             is_guiding: false,
 
@@ -67,7 +64,6 @@ impl State {
             spawn_num: 1,
 
             energy: 0,
-            energy_time: params.energy_time,
         })
     }
 
@@ -123,7 +119,9 @@ impl State {
             s.is_following = false;
 
             let is_good_soul = s.is_good();
-            if self.is_guiding && is_good_soul && is_close(s.pos, self.mouse_pos, self.mouse_radius)
+            if self.is_guiding
+                && is_good_soul
+                && is_close(s.pos, self.mouse_pos, self.params.sacred_radius)
             {
                 s.is_following = true;
                 s.pos = move_towards(s.pos, self.mouse_pos, self.params.following_speed * dt);
@@ -135,7 +133,7 @@ impl State {
             if is_good_soul {
                 s.energy_timer -= dt;
                 if s.energy_timer <= 0.0 {
-                    s.energy_timer = self.energy_time;
+                    s.energy_timer = self.params.energy_time;
                     self.energy += self.params.energy_amount;
                 }
             }
@@ -170,12 +168,14 @@ impl State {
 
             if let Some(k) = key {
                 let lvl = self.blessings.level(&b);
-                let can_unlock = self.blessings.can_unlock(b) && self.energy >= b.price(lvl + 1);
+                let price = b.price(lvl + 1);
+                let can_unlock = self.blessings.can_unlock(b) && self.energy >= price;
                 if can_unlock && is_key_pressed(k) {
                     let v = self.blessings.unlock(b);
                     if !v {
                         println!("Something went wrong... {:?}: {}", b, lvl);
                     } else {
+                        self.energy -= price;
                         self.params = self.blessings.params();
                     }
                 }
