@@ -13,6 +13,7 @@ use std::fmt::format;
 
 const LUMINAL_COLOR: Color = Color::rgb(0.0, 0.793, 1.0);
 const SHADOW_COLOR: Color = Color::rgb(0.612, 0.029, 0.029);
+const ETERNAL_COLOR: Color = Color::rgb(1.0, 0.483, 0.0);
 const NEUTRAL_COLOR: Color = Color::GRAY;
 
 fn main() -> Result<(), String> {
@@ -47,7 +48,6 @@ fn update(state: &mut State) {
     // draw.rect(MAP_SIZE * 0.5, Vec2::splat(16.0));
     state.souls.iter().for_each(|s| {
         let (color, alpha) = match s.kind() {
-            SoulKind::Luminal => (LUMINAL_COLOR, 1.0),
             SoulKind::Neutral => {
                 let k = s.karma;
                 let color = if k > 0.0 {
@@ -60,6 +60,8 @@ fn update(state: &mut State) {
                 (color, 0.3)
             }
             SoulKind::Shadow => (SHADOW_COLOR, 1.0),
+            SoulKind::Luminal => (LUMINAL_COLOR, 1.0),
+            SoulKind::Eternal => (ETERNAL_COLOR, 1.0),
         };
         let pos = s.pos + s.visuals.pos_offset;
         draw.rect(pos, Vec2::splat(16.0)).color(color).alpha(alpha);
@@ -93,23 +95,45 @@ fn update(state: &mut State) {
     .position(Vec2::splat(10.0))
     .size(10.0);
 
-    let (luminals, neutrals, shadows) =
+    let (eternals, luminals, neutrals, shadows) =
         state
             .souls
             .iter()
-            .fold((0, 0, 0), |(l, n, s), soul| match soul.kind() {
-                SoulKind::Luminal => (l + 1, n, s),
-                SoulKind::Neutral => (l, n + 1, s),
-                SoulKind::Shadow => (l, n, s + 1),
+            .fold((0, 0, 0, 0), |(e, l, n, s), soul| match soul.kind() {
+                SoulKind::Neutral => (e, l, n + 1, s),
+                SoulKind::Shadow => (e, l, n, s + 1),
+                SoulKind::Luminal => (e, l + 1, n, s),
+                SoulKind::Eternal => (e + 1, l, n, s),
             });
 
     let total = state.souls.len();
+    let good = (((eternals + luminals) as f32) / total as f32) * 100.0;
+    let bad = (((shadows) as f32) / total as f32) * 100.0; // todo check bad with sould.is_bad
+    let eternal_percent = (eternals as f32 / total as f32) * 100.0;
     let luminal_percent = (luminals as f32 / total as f32) * 100.0;
     let neutral_percent = (neutrals as f32 / total as f32) * 100.0;
     let shadow_percent = (shadows as f32 / total as f32) * 100.0;
     draw.text(&format!(
-        "Luminals: {:.0}% ({})\nNeutrals: {:.0}% ({})\nShadows: {:.0}% ({})\nTotal: {}",
-        luminal_percent, luminals, neutral_percent, neutrals, shadow_percent, shadows, total
+        "
+Good: {:.0}%
+Bad: {:.0}%
+--
+Eternals: {:.0}% ({})
+Luminals: {:.0}% ({})
+Neutrals: {:.0}% ({})
+Shadows: {:.0}% ({})
+Total: {}",
+        good,
+        bad,
+        eternal_percent,
+        eternals,
+        luminal_percent,
+        luminals,
+        neutral_percent,
+        neutrals,
+        shadow_percent,
+        shadows,
+        total
     ))
     .position(vec2(10.0, 30.0))
     .size(10.0);

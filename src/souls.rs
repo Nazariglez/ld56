@@ -3,11 +3,13 @@ use rkit::math::{vec2, Vec2};
 use rkit::random;
 use std::f32::consts::TAU;
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Default)]
 pub enum SoulKind {
-    Luminal,
+    #[default]
     Neutral,
     Shadow,
+    Luminal,
+    Eternal,
 }
 
 pub struct VisualData {
@@ -57,13 +59,27 @@ impl PartialEq for Soul {
 
 impl Soul {
     pub fn kind(&self) -> SoulKind {
-        if self.karma <= -1.0 {
-            SoulKind::Shadow
-        } else if self.karma >= 1.0 {
-            SoulKind::Luminal
-        } else {
+        if self.is_neutral() {
             SoulKind::Neutral
+        } else if self.is_bad() {
+            SoulKind::Shadow
+        } else if self.karma >= 5.0 {
+            SoulKind::Eternal
+        } else {
+            SoulKind::Luminal
         }
+    }
+
+    pub fn is_good(&self) -> bool {
+        self.karma >= 1.0
+    }
+
+    pub fn is_bad(&self) -> bool {
+        self.karma <= -1.0
+    }
+
+    pub fn is_neutral(&self) -> bool {
+        self.karma > -1.0 && self.karma < 1.0
     }
 
     pub fn idle_movement(&mut self, t: f32, dt: f32) {
