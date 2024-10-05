@@ -1,3 +1,4 @@
+use crate::params::{Params, PARAMS_END, PARAMS_START};
 use crate::souls::{Soul, SoulKind, VisualData};
 use rkit::app::window_size;
 use rkit::draw::{Camera2D, Draw2D, ScreenMode};
@@ -10,19 +11,17 @@ use std::f32::consts::TAU;
 pub const MAP_SIZE: Vec2 = Vec2::splat(1000.0);
 pub const RESOLUTION: Vec2 = Vec2::new(960.0, 540.0);
 const CAMERA_SPEED: f32 = 120.0;
-const FOLLOW_SPEED: f32 = 80.0;
-const GRID_SIZE: f32 = 16.0;
-const KARMA_CHANGE_RATE: f32 = 0.1;
+const GRID_SIZE: f32 = 20.0;
 const KARMA_CHANGE_RADIUS: f32 = 40.0;
-const KARMA_EXPIRE_RATE: f32 = 0.01;
 const INITIAL_SPAWN_TIME: f32 = 20.0;
-const ENERGY_COLLECTION_TIME: f32 = 3.0;
 
 pub struct State {
     pub camera: Camera2D,
     pub position: Vec2,
     pub souls: Vec<Soul>,
     pub ids: u64,
+
+    pub params: Params,
 
     // mouse
     pub mouse_radius: f32,
@@ -43,13 +42,16 @@ impl State {
     pub fn new() -> Result<Self, String> {
         let camera = Camera2D::new(window_size(), ScreenMode::AspectFit(RESOLUTION));
         let position = MAP_SIZE * 0.5;
+        let params = PARAMS_END;
         Ok(Self {
             camera,
             position,
             souls: vec![],
             ids: 0,
 
-            mouse_radius: 60.0,
+            params,
+
+            mouse_radius: params.sacred_radius,
             mouse_pos: Vec2::ZERO,
             is_guiding: false,
 
@@ -58,12 +60,12 @@ impl State {
             spawn_num: 1,
 
             energy: 0,
-            energy_time: ENERGY_COLLECTION_TIME,
+            energy_time: params.energy_time,
         })
     }
 
     pub fn spawn_souls(&mut self, n: usize, kind: Option<SoulKind>) {
-        let map_radius = MAP_SIZE.min_element() * 0.3;
+        let map_radius = MAP_SIZE.min_element() * 0.4;
         for i in 0..n {
             let range = match kind {
                 Some(k) => match k {
@@ -82,7 +84,7 @@ impl State {
                 karma,
                 pos,
                 is_following: false,
-                energy_timer: ENERGY_COLLECTION_TIME,
+                energy_timer: self.params.energy_time,
                 visuals: VisualData::new(),
             });
             self.ids += 1;
@@ -100,9 +102,13 @@ impl State {
         self.spawn_timer -= dt;
         if self.spawn_timer <= 0.0 {
             self.spawn_time = (self.spawn_time - 0.5).max(5.0);
-            self.spawn_timer = self.spawn_time;
+            self.spawn_timer = self.spawn_time + self.params.slow_spawn_time;
             self.spawn_num = (self.spawn_num + 1).min(20);
-            self.spawn_souls(self.spawn_num, Some(SoulKind::Neutral));
+            let souls_to_spawn = self
+                .spawn_num
+                .checked_sub(self.params.block_spawn_souls)
+                .unwrap_or(1);
+            self.spawn_souls(souls_to_spawn, Some(SoulKind::Neutral));
         }
 
         // update entities positions
@@ -113,7 +119,7 @@ impl State {
             if self.is_guiding && is_good_soul && is_close(s.pos, self.mouse_pos, self.mouse_radius)
             {
                 s.is_following = true;
-                s.pos = move_towards(s.pos, self.mouse_pos, FOLLOW_SPEED * dt);
+                s.pos = move_towards(s.pos, self.mouse_pos, self.params.following_speed * dt);
             }
 
             s.idle_movement(elapsed, dt);
@@ -123,14 +129,21 @@ impl State {
                 s.energy_timer -= dt;
                 if s.energy_timer <= 0.0 {
                     s.energy_timer = self.energy_time;
-                    self.energy += 1; // TODO this must be parametrized
+                    self.energy += self.params.energy_amount;
                 }
             }
         });
         avoid_overlap(&mut self.souls, GRID_SIZE);
 
         // update entities karma
-        update_karma(&mut self.souls, dt, KARMA_CHANGE_RADIUS, KARMA_CHANGE_RATE);
+        update_karma(
+            &mut self.souls,
+            dt,
+            KARMA_CHANGE_RADIUS,
+            self.params.karma_change_rate,
+            self.params.karma_expire_rate,
+            self.params.eternals,
+        );
     }
 
     pub fn apply_camera(&self, draw: &mut Draw2D) {
@@ -227,7 +240,14 @@ fn avoid_overlap(souls: &mut [Soul], min_distance: f32) {
     }
 }
 
-pub fn update_karma(souls: &mut [Soul], dt: f32, radius: f32, rate: f32) {
+pub fn update_karma(
+    souls: &mut [Soul],
+    dt: f32,
+    radius: f32,
+    rate: f32,
+    expire_rate: f32,
+    use_eternals: bool,
+) {
     // collect karma and apply later (let's please borrow checker for now)
     let karma = souls
         .iter()
@@ -237,14 +257,12 @@ pub fn update_karma(souls: &mut [Soul], dt: f32, radius: f32, rate: f32) {
                 return soul.karma;
             }
 
-            let eternals_availanle = true; // TODO parametrize this
-            let max_karma = if eternals_availanle { 6.0 } else { 2.0 };
+            let max_karma = if use_eternals { 6.0 } else { 2.0 };
 
             let (good_souls, bad_souls) = count_souls(souls, soul.id, soul.pos, radius);
 
-            // TODO check if we're in sacred zone
             // karma decrease slowly or increase if following
-            let expiration = KARMA_EXPIRE_RATE * dt;
+            let expiration = expire_rate * dt;
             let mut karma = if soul.is_following {
                 soul.karma + expiration
             } else {

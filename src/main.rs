@@ -1,3 +1,4 @@
+mod params;
 mod souls;
 mod state;
 
@@ -22,9 +23,6 @@ fn main() -> Result<(), String> {
 
 fn setup() -> State {
     let mut state = State::new().unwrap();
-    // state.spawn_souls(5, Some(SoulKind::Neutral));
-    // state.spawn_souls(1, Some(SoulKind::Luminal));
-    // state.spawn_souls(1, Some(SoulKind::Luminal));
     state.spawn_souls(20, None);
     state.spawn_souls(50, Some(SoulKind::Neutral));
     state.spawn_souls(5, Some(SoulKind::Luminal));
