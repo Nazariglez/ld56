@@ -21,10 +21,13 @@ fn main() -> Result<(), String> {
 
 fn setup() -> State {
     let mut state = State::new().unwrap();
+    // state.spawn_souls(5, Some(SoulKind::Neutral));
+    // state.spawn_souls(1, Some(SoulKind::Luminal));
+    // state.spawn_souls(1, Some(SoulKind::Luminal));
     state.spawn_souls(20, None);
-    state.spawn_souls(130, Some(SoulKind::Neutral));
-    state.spawn_souls(10, Some(SoulKind::Luminal));
-    state.spawn_souls(10, Some(SoulKind::Shadow));
+    state.spawn_souls(50, Some(SoulKind::Neutral));
+    state.spawn_souls(5, Some(SoulKind::Luminal));
+    state.spawn_souls(5, Some(SoulKind::Shadow));
     state
 }
 
@@ -60,6 +63,9 @@ fn update(state: &mut State) {
         };
         let pos = s.pos + s.visuals.pos_offset;
         draw.rect(pos, Vec2::splat(16.0)).color(color).alpha(alpha);
+        draw.text(&format!("{:.2}", s.karma))
+            .size(10.0)
+            .position(pos - Vec2::Y * 16.0);
     });
 
     let (color, alpha) = if state.is_guiding {
@@ -87,7 +93,7 @@ fn update(state: &mut State) {
     .position(Vec2::splat(10.0))
     .size(10.0);
 
-    let (luminal_count, neutral_count, shadow_count) =
+    let (luminals, neutrals, shadows) =
         state
             .souls
             .iter()
@@ -97,9 +103,13 @@ fn update(state: &mut State) {
                 SoulKind::Shadow => (l, n, s + 1),
             });
 
+    let total = state.souls.len();
+    let luminal_percent = (luminals as f32 / total as f32) * 100.0;
+    let neutral_percent = (neutrals as f32 / total as f32) * 100.0;
+    let shadow_percent = (shadows as f32 / total as f32) * 100.0;
     draw.text(&format!(
-        "Luminals: {}\nNeutrals: {}\nShadows: {}\n",
-        luminal_count, neutral_count, shadow_count
+        "Luminals: {:.0}% ({})\nNeutrals: {:.0}% ({})\nShadows: {:.0}% ({})\nTotal: {}",
+        luminal_percent, luminals, neutral_percent, neutrals, shadow_percent, shadows, total
     ))
     .position(vec2(10.0, 30.0))
     .size(10.0);

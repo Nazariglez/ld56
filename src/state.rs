@@ -14,13 +14,15 @@ const FOLLOW_SPEED: f32 = 80.0;
 const GRID_SIZE: f32 = 16.0;
 const KARMA_CHANGE_RATE: f32 = 0.1;
 const KARMA_CHANGE_RADIUS: f32 = 40.0;
-const KARMA_EXPIRE_RATE: f32 = 0.03;
+const KARMA_EXPIRE_RATE: f32 = 0.01;
 const INITIAL_SPAWN_TIME: f32 = 20.0;
+const ENERGY_COLLECTION_TIME: f32 = 2.0;
 
 pub struct State {
     pub camera: Camera2D,
     pub position: Vec2,
     pub souls: Vec<Soul>,
+    pub ids: u64,
 
     // mouse
     pub mouse_radius: f32,
@@ -28,7 +30,14 @@ pub struct State {
     pub is_guiding: bool,
 
     // spawner
-    pub spawn_time: f32,
+    pub spawn_time: f32,  // time to reset timer
+    pub spawn_timer: f32, // current spawn timer
+    pub spawn_num: usize, // number of souls spawned
+
+    // stats
+    pub energy: u64,
+    pub energy_time: f32,
+    pub energy_timer: f32,
 }
 
 impl State {
@@ -39,12 +48,19 @@ impl State {
             camera,
             position,
             souls: vec![],
+            ids: 0,
 
-            mouse_radius: 50.0,
+            mouse_radius: 60.0,
             mouse_pos: Vec2::ZERO,
             is_guiding: false,
 
             spawn_time: INITIAL_SPAWN_TIME,
+            spawn_timer: INITIAL_SPAWN_TIME,
+            spawn_num: 1,
+
+            energy: 0,
+            energy_time: ENERGY_COLLECTION_TIME,
+            energy_timer: ENERGY_COLLECTION_TIME,
         })
     }
 
@@ -63,11 +79,13 @@ impl State {
             let karma: f32 = random::range(range);
             let pos = (MAP_SIZE * 0.5 + radial_random_pos(map_radius)).round();
             self.souls.push(Soul {
+                id: self.ids,
                 karma,
                 pos,
                 is_following: false,
                 visuals: VisualData::new(),
             });
+            self.ids += 1;
         }
     }
 
@@ -97,10 +115,12 @@ impl State {
         // update entities karma
         update_karma(&mut self.souls, dt, KARMA_CHANGE_RADIUS, KARMA_CHANGE_RATE);
 
-        self.spawn_time -= dt;
-        if self.spawn_time <= 0.0 {
-            self.spawn_time = INITIAL_SPAWN_TIME;
-            self.spawn_souls(20, Some(SoulKind::Neutral));
+        self.spawn_timer -= dt;
+        if self.spawn_timer <= 0.0 {
+            self.spawn_time = (self.spawn_time - 0.5).max(5.0);
+            self.spawn_timer = self.spawn_time;
+            self.spawn_num = (self.spawn_num + 1).min(20);
+            self.spawn_souls(self.spawn_num, Some(SoulKind::Neutral));
         }
     }
 
@@ -203,61 +223,28 @@ pub fn update_karma(souls: &mut [Soul], dt: f32, radius: f32, rate: f32) {
     let karma = souls
         .iter()
         .map(|soul| {
-            let (luminals, shadows) = count_souls(souls, soul.pos, radius);
+            let (luminals, shadows) = count_souls(souls, soul.id, soul.pos, radius);
 
             // TODO check if we're in sacred zone
-            // karma decrease slowly
-            let mut karma = soul.karma - KARMA_EXPIRE_RATE * dt;
+            // karma decrease slowly or increase if following
+            let expiration = KARMA_EXPIRE_RATE * dt;
+            let mut karma = if soul.is_following {
+                soul.karma + expiration
+            } else {
+                soul.karma - expiration
+            };
 
-            match soul.kind() {
-                SoulKind::Luminal => {
-                    if shadows > 0 {
-                        if shadows > luminals {
-                            karma = (karma - rate * dt).max(-2.0);
-                        } else if luminals > shadows {
-                            karma = (karma + rate * dt).min(2.0);
-                        }
-                    }
-                }
-                _ => {
-                    if shadows > luminals {
-                        karma = (karma - rate * dt).max(-2.0);
-                    } else if luminals > shadows {
-                        karma = (karma + rate * dt).min(2.0);
-                    }
-                }
+            // update karma
+            if shadows > luminals {
+                // shadows have slow rate to compensate expiration time
+                let new_rate = rate * 0.2;
+                karma = (karma - new_rate * dt).max(-2.0);
+            } else if luminals > shadows {
+                // more luminals following will convert faster (50 for 1 extra point)
+                let extra = (luminals as f32 / 50.0).clamp(0.0, 1.0);
+                let new_rate = rate + extra;
+                karma = (karma + new_rate * dt).min(2.0);
             }
-
-            /*let karma = match soul.kind() {
-                // push karma to shadow
-                (SoulKind::Luminal | SoulKind::Neutral) if shadows > luminals => {
-                    let mut val = (updated_karma - rate * dt).max(-2.0);
-                    if val <= -1.0 {
-                        val = -2.0;
-                    }
-                    val
-                }
-                // push karma to luminal
-                (SoulKind::Shadow | SoulKind::Neutral) if luminals > shadows => {
-                    let mut val = (updated_karma + rate * dt).min(2.0);
-                    if val >= 1.0 {
-                        val = 2.0;
-                    }
-                    val
-                }
-                // // decrease karma until is close to shadow
-                // _ => {
-                //     if updated_karma > -1.0 {
-                //         updated_karma
-                //     } else {
-                //         soul.karma
-                //     }
-                // }
-                _ => {
-                    println!("rott");
-                    updated_karma
-                }
-            };*/
 
             karma.clamp(-2.0, 2.0)
         })
@@ -269,24 +256,25 @@ pub fn update_karma(souls: &mut [Soul], dt: f32, radius: f32, rate: f32) {
     }
 }
 
-pub fn count_souls(souls: &[Soul], pos: Vec2, radius: f32) -> (usize, usize) {
-    const SHADOWS_EXTRA_INFLUENCE: f32 = 15.0; // shadows have bigger radius
-
+pub fn count_souls(souls: &[Soul], id: u64, pos: Vec2, radius: f32) -> (usize, usize) {
     let mut luminals = 0;
     let mut shadows = 0;
 
     for other_soul in souls {
-        let dist = other_soul.pos.distance(pos);
+        if other_soul.id == id {
+            continue;
+        }
+
+        let dist = other_soul.pos.distance_squared(pos);
 
         match other_soul.kind() {
-            SoulKind::Luminal => {
+            SoulKind::Luminal if other_soul.is_following => {
                 if dist <= radius * radius {
                     luminals += 1
                 }
             }
             SoulKind::Shadow => {
-                let r = radius * SHADOWS_EXTRA_INFLUENCE;
-                if dist <= r * r {
+                if dist <= radius * radius {
                     shadows += 1
                 }
             }

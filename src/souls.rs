@@ -41,10 +41,17 @@ impl VisualData {
 }
 
 pub struct Soul {
+    pub id: u64,
     pub karma: f32,
     pub pos: Vec2,
     pub is_following: bool,
     pub visuals: VisualData,
+}
+
+impl PartialEq for Soul {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
 }
 
 impl Soul {
