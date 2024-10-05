@@ -4,4 +4,6 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+num = "0.4.3"
 rkit = { path = "../rkit", default-features = false, features = ["random", "draw", "draw-default-font", "audio"] }
+rand = "0.9.0-alpha.2"
