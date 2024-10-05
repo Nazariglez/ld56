@@ -11,13 +11,20 @@ use rkit::math::{vec2, Vec2};
 use rkit::{gfx, time};
 use std::fmt::format;
 
+const LUMINAL_COLOR: Color = Color::rgb(0.0, 0.793, 1.0);
+const SHADOW_COLOR: Color = Color::rgb(0.612, 0.029, 0.029);
+const NEUTRAL_COLOR: Color = Color::GRAY;
+
 fn main() -> Result<(), String> {
     rkit::init_with(setup).on_update(update).run()
 }
 
 fn setup() -> State {
     let mut state = State::new().unwrap();
-    state.spawn_souls(100, None);
+    state.spawn_souls(20, None);
+    state.spawn_souls(130, Some(SoulKind::Neutral));
+    state.spawn_souls(10, Some(SoulKind::Luminal));
+    state.spawn_souls(10, Some(SoulKind::Shadow));
     state
 }
 
@@ -36,18 +43,33 @@ fn update(state: &mut State) {
 
     // draw.rect(MAP_SIZE * 0.5, Vec2::splat(16.0));
     state.souls.iter().for_each(|s| {
-        let color = match s.kind() {
-            SoulKind::Luminal => Color::BLUE,
-            SoulKind::Neutral => Color::GRAY,
-            SoulKind::Shadow => Color::MAROON,
+        let (color, alpha) = match s.kind() {
+            SoulKind::Luminal => (LUMINAL_COLOR, 1.0),
+            SoulKind::Neutral => {
+                let k = s.karma;
+                let color = if k > 0.0 {
+                    lerp_color(NEUTRAL_COLOR, LUMINAL_COLOR, k)
+                } else if k < 0.0 {
+                    lerp_color(NEUTRAL_COLOR, SHADOW_COLOR, -k)
+                } else {
+                    NEUTRAL_COLOR
+                };
+                (color, 0.3)
+            }
+            SoulKind::Shadow => (SHADOW_COLOR, 1.0),
         };
         let pos = s.pos + s.visuals.pos_offset;
-        draw.rect(pos, Vec2::splat(16.0)).color(color);
+        draw.rect(pos, Vec2::splat(16.0)).color(color).alpha(alpha);
     });
 
+    let (color, alpha) = if state.is_guiding {
+        (Color::MAGENTA, 0.3)
+    } else {
+        (Color::YELLOW, 0.05)
+    };
     draw.circle(state.mouse_radius)
-        .color(Color::MAGENTA)
-        .alpha(0.05)
+        .color(color)
+        .alpha(alpha)
         .position(state.mouse_pos - state.mouse_radius);
 
     gfx::render_to_frame(&draw).unwrap();
@@ -87,4 +109,8 @@ fn update(state: &mut State) {
     //     .stroke(3.0);
 
     gfx::render_to_frame(&draw).unwrap();
+}
+
+pub fn lerp_color(c1: Color, c2: Color, t: f32) -> Color {
+    c1 + (c2 - c1) * t
 }

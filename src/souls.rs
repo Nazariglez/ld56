@@ -43,6 +43,7 @@ impl VisualData {
 pub struct Soul {
     pub karma: f32,
     pub pos: Vec2,
+    pub is_following: bool,
     pub visuals: VisualData,
 }
 
