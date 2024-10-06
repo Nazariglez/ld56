@@ -9,7 +9,9 @@ use crate::state::{is_close, move_towards, Mode, State, MAP_SIZE, RESOLUTION};
 use rkit::app::{window_height, window_size, window_width};
 use rkit::draw::{create_draw_2d, Draw2D, Transform2D};
 use rkit::gfx::Color;
-use rkit::input::{is_mouse_btn_pressed, keys_pressed, mouse_position, MouseButton};
+use rkit::input::{
+    is_key_pressed, is_mouse_btn_pressed, keys_pressed, mouse_position, KeyCode, MouseButton,
+};
 use rkit::math::{vec2, Rect, Vec2};
 use rkit::{gfx, time};
 use std::thread::spawn;
@@ -57,14 +59,10 @@ fn update(state: &mut State) {
         .size(cam_bounds.size)
         .image_offset(offset);
 
-    match state.mode {
-        Mode::Menu => {
-            gfx::render_to_frame(&draw).unwrap();
-            draw_menu(state);
-            return;
-        }
-        Mode::End => {}
-        _ => {}
+    if matches!(state.mode, Mode::Menu) {
+        gfx::render_to_frame(&draw).unwrap();
+        draw_menu(state);
+        return;
     }
 
     //draw bounds
@@ -371,6 +369,12 @@ fn update(state: &mut State) {
     }
 
     gfx::render_to_frame(&draw).unwrap();
+
+    match state.mode {
+        Mode::Win => draw_end(true, state),
+        Mode::Defeat => draw_end(false, state),
+        _ => {}
+    }
 }
 
 pub fn lerp_color(c1: Color, c2: Color, t: f32) -> Color {
@@ -400,7 +404,7 @@ pub fn draw_menu(state: &mut State) {
         .color(Color::WHITE)
         .size(20.0);
 
-    draw.text("Your mision is to reach 100% influence (blue) before it drops to zero! Move the camera with WASD, and use the left mouse button to guide the good souls to follow you, turning other souls blue. Keep an eye on your spiritual energy to unlock blessings (top-left) for extra perks. Manage the balance between light and shadow, and don’t let your influence fade away!")
+    draw.text("Your mision is to reach at least 98% influence (blue) before it drops to zero! Move the camera with WASD, and use the left mouse button to guide the good souls to follow you, turning other souls blue. Keep an eye on your spiritual energy to unlock blessings (top-left) for extra perks. Manage the balance between light and shadow, and don’t let your influence fade away!")
         .anchor(vec2(0.5, 1.0))
         .translate(vec2(window_width() * 0.5, window_height() - 50.0))
         .h_align_center()
@@ -420,4 +424,70 @@ pub fn draw_menu(state: &mut State) {
         state.mode = Mode::Playing;
         init_spawn(state);
     }
+}
+
+fn draw_end(winning: bool, state: &mut State) {
+    let (win_text, color) = if winning {
+        (
+            "You've won!\nThe light of karma shines bright",
+            ETERNAL_COLOR,
+        )
+    } else {
+        (
+            "The shadows have overwhelmed you.\nYour influence has faded into darkness",
+            SHADOW_COLOR,
+        )
+    };
+
+    let mut draw = create_draw_2d();
+
+    draw.rect(Vec2::ZERO, window_size())
+        .color(Color::BLACK)
+        .alpha(0.99);
+
+    draw.text(win_text)
+        .color(color)
+        .h_align_center()
+        .anchor(vec2(0.5, 0.0))
+        .translate(vec2(window_width() * 0.5, 50.0))
+        .max_width(window_width() * 0.8)
+        .size(30.0);
+
+    let (good, bad, neutral) = state.souls.iter().fold((0, 0, 0), |(g, b, n), s| {
+        if s.is_good() {
+            (g + 1, b, n)
+        } else if s.is_bad() {
+            (g, b + 1, n)
+        } else {
+            (g, b, n + 1)
+        }
+    });
+
+    let text = format!(
+        "You've converted '{good}' souls, while the enemy captured '{bad}' out of '{}' total. There were '{neutral}' neutral souls remaining. You gathered '{}' spiritual energy, and your total playtime was {:.0} seconds.",
+        state.souls.len(),
+        state.total_energy,
+        state.play_time
+    );
+
+    draw.text(&text)
+        .size(16.0)
+        .color(Color::GRAY)
+        .h_align_center()
+        .max_width(window_width() * 0.6)
+        .anchor(Vec2::splat(0.5))
+        .translate(window_size() * 0.5);
+
+    draw.text("Press SPACE to RESTART")
+        .size(20.0)
+        .color(Color::WHITE)
+        .h_align_center()
+        .anchor(vec2(0.5, 1.0))
+        .translate(vec2(window_width() * 0.5, window_height() - 50.0));
+
+    if is_key_pressed(KeyCode::Space) {
+        *state = setup();
+    }
+
+    gfx::render_to_frame(&draw).unwrap();
 }

@@ -18,7 +18,8 @@ use strum::IntoEnumIterator;
 pub enum Mode {
     Menu,
     Playing,
-    End,
+    Win,
+    Defeat,
 }
 
 pub const MAP_SIZE: Vec2 = Vec2::splat(1000.0);
@@ -53,6 +54,8 @@ pub struct State {
     pub energy: u64,
     pub good_progress: f32,
     pub bad_progress: f32,
+    pub play_time: f32,
+    pub total_energy: u64,
 
     // res
     pub res: Resources,
@@ -91,6 +94,8 @@ impl State {
             good_progress: 0.0,
             bad_progress: 0.0,
 
+            play_time: 0.0,
+            total_energy: 0,
             res,
 
             energy_positions: Vec::with_capacity(200),
@@ -135,6 +140,7 @@ impl State {
             return;
         }
 
+        self.play_time += dt;
         self.is_guiding = is_guiding_souls();
 
         // Manage the spawner
@@ -183,6 +189,7 @@ impl State {
                 if s.energy_timer <= 0.0 {
                     s.energy_timer = self.params.energy_time;
                     self.energy += self.params.energy_amount;
+                    self.total_energy += self.params.energy_amount;
                     self.energy_positions
                         .push(self.camera.local_to_screen(s.pos));
                 }
@@ -209,6 +216,12 @@ impl State {
             self.params.eternals,
             &aabb_index,
         );
+
+        if self.good_progress >= 0.98 {
+            self.mode = Mode::Win;
+        } else if self.good_progress <= 0.0 {
+            self.mode = Mode::Defeat;
+        }
     }
 
     pub fn unlock_blessing(&mut self, b: Blessing) -> bool {
@@ -250,6 +263,10 @@ impl State {
     }
 
     fn camera_movement(&mut self, dt: f32) {
+        if !matches!(self.mode, Mode::Playing) {
+            return;
+        }
+
         let mut mul = Vec2::ZERO;
         if is_moving_left() {
             mul.x = -1.0;

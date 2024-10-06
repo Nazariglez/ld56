@@ -17,11 +17,11 @@ pub struct Params {
 
 pub const PARAMS_START: Params = Params {
     sacred_radius: 50.0,
-    karma_change_rate: 0.09,
+    karma_change_rate: 0.1,
     karma_expire_rate: 0.015,
-    energy_time: 3.0,
+    energy_time: 2.0,
     energy_amount: 1,
-    following_speed: 75.0,
+    following_speed: 85.0,
     eternals: false,
     slow_spawn_time: 0.0,
     block_spawn_souls: 0,
@@ -64,15 +64,15 @@ impl Blessing {
     pub fn price(&self, level: u8) -> u64 {
         let multi = 1.3 + (level as f32 / 12.0);
         let base: f32 = match self {
-            Blessing::CircleOfGrace => 15.0,
-            Blessing::KarmaAmplification => 40.0,
-            Blessing::KarmaPersistence => 90.0,
-            Blessing::SpiritualFocus => 190.0,
-            Blessing::AscendantEnergy => 390.0,
-            Blessing::Devotion => 790.0,
-            Blessing::GracefulPause => 1590.0,
-            Blessing::SpiritualGate => 3190.0,
-            Blessing::EternalGrace => 6390.0,
+            Blessing::CircleOfGrace => 10.0,
+            Blessing::KarmaAmplification => 30.0,
+            Blessing::KarmaPersistence => 80.0,
+            Blessing::SpiritualFocus => 150.0,
+            Blessing::AscendantEnergy => 300.0,
+            Blessing::Devotion => 550.0,
+            Blessing::GracefulPause => 1000.0,
+            Blessing::SpiritualGate => 1800.0,
+            Blessing::EternalGrace => 2590.0,
         };
 
         (base.powf(multi)) as _
@@ -82,11 +82,11 @@ impl Blessing {
         Some(match self {
             Blessing::CircleOfGrace => return None,
             Blessing::KarmaAmplification => (4, Blessing::CircleOfGrace),
-            Blessing::KarmaPersistence => (4, Blessing::KarmaAmplification),
+            Blessing::KarmaPersistence => (3, Blessing::KarmaAmplification),
             Blessing::SpiritualFocus => (3, Blessing::KarmaPersistence),
-            Blessing::AscendantEnergy => (3, Blessing::SpiritualFocus),
+            Blessing::AscendantEnergy => (2, Blessing::SpiritualFocus),
             Blessing::Devotion => (2, Blessing::AscendantEnergy),
-            Blessing::GracefulPause => (2, Blessing::Devotion),
+            Blessing::GracefulPause => (1, Blessing::Devotion),
             Blessing::SpiritualGate => (1, Blessing::GracefulPause),
             Blessing::EternalGrace => (1, Blessing::SpiritualGate),
         })
