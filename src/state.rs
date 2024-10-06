@@ -1,4 +1,5 @@
 use crate::params::{Blessing, Blessings, Params, PARAMS_END, PARAMS_START};
+use crate::resources::Resources;
 use crate::souls::{Soul, SoulKind, VisualData};
 use rkit::app::{window_height, window_size};
 use rkit::draw::{Camera2D, Draw2D, ScreenMode};
@@ -12,7 +13,8 @@ use std::f32::consts::TAU;
 use strum::IntoEnumIterator;
 
 pub const MAP_SIZE: Vec2 = Vec2::splat(1000.0);
-pub const RESOLUTION: Vec2 = Vec2::new(960.0, 540.0);
+// pub const RESOLUTION: Vec2 = Vec2::new(960.0, 540.0);
+pub const RESOLUTION: Vec2 = Vec2::new(640.0, 360.0);
 const CAMERA_SPEED: f32 = 120.0;
 const GRID_SIZE: f32 = 20.0;
 const KARMA_CHANGE_RADIUS: f32 = 40.0;
@@ -38,6 +40,11 @@ pub struct State {
 
     // stats
     pub energy: u64,
+    pub good_progress: f32,
+    pub bad_progress: f32,
+
+    // res
+    pub res: Resources,
 }
 
 impl State {
@@ -46,6 +53,7 @@ impl State {
         let position = MAP_SIZE * 0.5;
         let blessings = Blessings::new();
         let params = blessings.params();
+        let res = Resources::new()?;
 
         Ok(Self {
             camera,
@@ -64,6 +72,10 @@ impl State {
             spawn_num: 1,
 
             energy: 0,
+            good_progress: 0.0,
+            bad_progress: 0.0,
+
+            res,
         })
     }
 
@@ -114,8 +126,17 @@ impl State {
             self.spawn_souls(souls_to_spawn, Some(SoulKind::Neutral));
         }
 
+        let mut good = 0;
+        let mut bad = 0;
+
         // update entities positions
         self.souls.iter_mut().for_each(|s| {
+            if s.is_good() {
+                good += 1;
+            } else if s.is_bad() {
+                bad += 1;
+            }
+
             s.is_following = false;
 
             let is_good_soul = s.is_good();
@@ -140,6 +161,10 @@ impl State {
         });
         avoid_overlap(&mut self.souls, GRID_SIZE);
 
+        // update progress
+        self.good_progress = good as f32 / self.souls.len() as f32;
+        self.bad_progress = bad as f32 / self.souls.len() as f32;
+
         // update entities karma
         update_karma(
             &mut self.souls,
@@ -149,38 +174,23 @@ impl State {
             self.params.karma_expire_rate,
             self.params.eternals,
         );
+    }
 
-        // TODO remove temporal upgrades
-        Blessing::iter().enumerate().for_each(|(n, b)| {
-            let key = match n {
-                0 => Some(KeyCode::Digit0),
-                1 => Some(KeyCode::Digit1),
-                2 => Some(KeyCode::Digit2),
-                3 => Some(KeyCode::Digit3),
-                4 => Some(KeyCode::Digit4),
-                5 => Some(KeyCode::Digit5),
-                6 => Some(KeyCode::Digit6),
-                7 => Some(KeyCode::Digit7),
-                8 => Some(KeyCode::Digit8),
-                9 => Some(KeyCode::Digit9),
-                _ => None,
-            };
-
-            if let Some(k) = key {
-                let lvl = self.blessings.level(&b);
-                let price = b.price(lvl + 1);
-                let can_unlock = self.blessings.can_unlock(b) && self.energy >= price;
-                if can_unlock && is_key_pressed(k) {
-                    let v = self.blessings.unlock(b);
-                    if !v {
-                        println!("Something went wrong... {:?}: {}", b, lvl);
-                    } else {
-                        self.energy -= price;
-                        self.params = self.blessings.params();
-                    }
-                }
+    pub fn unlock_blessing(&mut self, b: Blessing) -> bool {
+        let lvl = self.blessings.level(&b);
+        let price = b.price(lvl + 1);
+        let can_unlock = self.blessings.can_unlock(b) && self.energy >= price;
+        if can_unlock {
+            let v = self.blessings.unlock(b);
+            if v {
+                self.energy -= price;
+                self.params = self.blessings.params();
             }
-        })
+
+            return v;
+        }
+
+        return false;
     }
 
     pub fn apply_camera(&self, draw: &mut Draw2D) {
@@ -230,7 +240,7 @@ fn is_moving_down() -> bool {
 }
 
 fn is_guiding_souls() -> bool {
-    is_mouse_btn_down(MouseButton::Right)
+    is_mouse_btn_down(MouseButton::Left)
 }
 
 fn radial_random_pos(radius: f32) -> Vec2 {
