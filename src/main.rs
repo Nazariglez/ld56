@@ -6,13 +6,13 @@ mod state;
 use crate::params::Blessing;
 use crate::souls::{KarmaConversion, SoulKind};
 use crate::state::{is_close, move_towards, Mode, State, MAP_SIZE, RESOLUTION};
-use rkit::app::{window_height, window_size, window_width};
+use rkit::app::{window_height, window_size, window_width, WindowConfig};
 use rkit::draw::{create_draw_2d, Draw2D, Transform2D};
 use rkit::gfx::Color;
 use rkit::input::{
     is_key_pressed, is_mouse_btn_pressed, keys_pressed, mouse_position, KeyCode, MouseButton,
 };
-use rkit::math::{vec2, Rect, Vec2};
+use rkit::math::{uvec2, vec2, Rect, Vec2};
 use rkit::{gfx, time};
 use std::thread::spawn;
 use strum::IntoEnumIterator;
@@ -23,7 +23,17 @@ const ETERNAL_COLOR: Color = Color::rgb(1.0, 0.596, 0.171);
 const NEUTRAL_COLOR: Color = Color::WHITE;
 
 fn main() -> Result<(), String> {
-    rkit::init_with(setup).on_update(update).run()
+    let win = WindowConfig {
+        title: "LD56 - Karma Keepers".to_string(),
+        size: uvec2(640, 512),
+        vsync: true,
+        resizable: true,
+        ..WindowConfig::default()
+    };
+    rkit::init_with(setup)
+        .with_window(win)
+        .on_update(update)
+        .run()
 }
 
 fn setup() -> State {
@@ -281,7 +291,10 @@ fn update(state: &mut State) {
     draw.text(&format!(
         "Next wave: {:.1}s ({} souls)",
         state.spawn_timer - state.params.slow_spawn_time,
-        state.spawn_num - state.params.block_spawn_souls
+        state
+            .spawn_num
+            .checked_sub(state.params.block_spawn_souls)
+            .unwrap_or(1)
     ))
     .anchor(vec2(0.5, 0.0))
     .h_align_center()
