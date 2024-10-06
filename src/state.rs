@@ -1,10 +1,12 @@
 use crate::params::{Blessing, Blessings, Params, PARAMS_END, PARAMS_START};
 use crate::resources::Resources;
 use crate::souls::{KarmaConversion, Soul, SoulKind, VisualData};
+use num::Zero;
 use rkit::app::{window_height, window_size};
 use rkit::draw::{Camera2D, Draw2D, ScreenMode};
 use rkit::input::{
-    is_key_down, is_key_pressed, is_mouse_btn_down, mouse_position, KeyCode, MouseButton,
+    is_key_down, is_key_pressed, is_mouse_btn_down, mouse_position, mouse_wheel_delta, KeyCode,
+    MouseButton,
 };
 use rkit::math::{vec2, Vec2};
 use rkit::random;
@@ -155,6 +157,7 @@ impl State {
             }
 
             s.idle_movement(elapsed, dt);
+            s.pos = s.pos.clamp(Vec2::ZERO, MAP_SIZE); // keep my beloved souls inside the map
 
             // collect energy
             if is_good_soul {
@@ -209,7 +212,15 @@ impl State {
         self.camera_movement(dt);
         self.camera.set_size(window_size().floor());
         self.camera.set_position(self.position.floor());
-        // self.camera.set_zoom(0.8);
+
+        // FIXME not working on the engine, delta is always a positive number using wheel (works with trackpad)
+        // let w_dt = mouse_wheel_delta().y;
+        // if !w_dt.is_zero() {
+        //     println!("{w_dt}");
+        //     let zoom = (self.camera.zoom() + w_dt);
+        //     self.camera.set_zoom(zoom);
+        // }
+
         self.camera.update();
         self.mouse_pos = self.camera.screen_to_local(mouse_position());
     }
