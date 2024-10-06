@@ -14,6 +14,13 @@ use static_aabb2d_index::{StaticAABB2DIndex, StaticAABB2DIndexBuilder};
 use std::f32::consts::TAU;
 use strum::IntoEnumIterator;
 
+#[derive(Copy, Clone)]
+pub enum Mode {
+    Menu,
+    Playing,
+    End,
+}
+
 pub const MAP_SIZE: Vec2 = Vec2::splat(1000.0);
 // pub const RESOLUTION: Vec2 = Vec2::new(960.0, 540.0);
 pub const RESOLUTION: Vec2 = Vec2::new(640.0, 360.0);
@@ -23,6 +30,8 @@ const KARMA_CHANGE_RADIUS: f32 = 40.0;
 const INITIAL_SPAWN_TIME: f32 = 20.0;
 
 pub struct State {
+    pub mode: Mode,
+
     pub camera: Camera2D,
     pub position: Vec2,
     pub souls: Vec<Soul>,
@@ -61,6 +70,8 @@ impl State {
         let res = Resources::new()?;
 
         Ok(Self {
+            mode: Mode::Menu,
+
             camera,
             position,
             souls: vec![],
@@ -119,6 +130,11 @@ impl State {
         let dt = time::delta_f32();
 
         self.update_camera(dt);
+
+        if !matches!(self.mode, Mode::Playing) {
+            return;
+        }
+
         self.is_guiding = is_guiding_souls();
 
         // Manage the spawner

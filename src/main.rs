@@ -5,14 +5,14 @@ mod state;
 
 use crate::params::Blessing;
 use crate::souls::{KarmaConversion, SoulKind};
-use crate::state::{is_close, move_towards, State, MAP_SIZE, RESOLUTION};
+use crate::state::{is_close, move_towards, Mode, State, MAP_SIZE, RESOLUTION};
 use rkit::app::{window_height, window_size, window_width};
-use rkit::draw::{create_draw_2d, Transform2D};
+use rkit::draw::{create_draw_2d, Draw2D, Transform2D};
 use rkit::gfx::Color;
-use rkit::input::{is_mouse_btn_pressed, mouse_position, MouseButton};
+use rkit::input::{is_mouse_btn_pressed, keys_pressed, mouse_position, MouseButton};
 use rkit::math::{vec2, Rect, Vec2};
 use rkit::{gfx, time};
-use std::fmt::format;
+use std::thread::spawn;
 use strum::IntoEnumIterator;
 
 const LUMINAL_COLOR: Color = Color::rgb(0.171, 0.863, 0.929);
@@ -25,12 +25,14 @@ fn main() -> Result<(), String> {
 }
 
 fn setup() -> State {
-    let mut state = State::new().unwrap();
+    State::new().unwrap()
+}
+
+fn init_spawn(state: &mut State) {
     state.spawn_souls(30, None);
     state.spawn_souls(50, Some(SoulKind::Neutral));
     state.spawn_souls(8, Some(SoulKind::Luminal));
     state.spawn_souls(8, Some(SoulKind::Shadow));
-    state
 }
 
 fn update(state: &mut State) {
@@ -54,6 +56,16 @@ fn update(state: &mut State) {
         .position(cam_bounds.origin)
         .size(cam_bounds.size)
         .image_offset(offset);
+
+    match state.mode {
+        Mode::Menu => {
+            gfx::render_to_frame(&draw).unwrap();
+            draw_menu(state);
+            return;
+        }
+        Mode::End => {}
+        _ => {}
+    }
 
     //draw bounds
     draw.rect(Vec2::ZERO, MAP_SIZE)
@@ -363,4 +375,49 @@ fn update(state: &mut State) {
 
 pub fn lerp_color(c1: Color, c2: Color, t: f32) -> Color {
     c1 + (c2 - c1) * t
+}
+
+pub fn draw_menu(state: &mut State) {
+    let mut draw = create_draw_2d();
+    draw.text("Karma Keepers")
+        .anchor(vec2(0.5, 0.0))
+        .translate(vec2(window_width() * 0.5, 50.0))
+        .size(40.0);
+
+    draw.text("Guide the tiny souls, balance the forces of light and shadow, and preserve the fragile harmony of the spiritual realm.")
+        .anchor(vec2(0.5, 0.0))
+        .translate(vec2(window_width() * 0.5, 100.0))
+        .h_align_center()
+        .max_width(window_width() * 0.8)
+        .color(Color::GRAY)
+        .size(14.0);
+
+    draw.text("Press ANY key to start")
+        .anchor(Vec2::splat(0.5))
+        .translate(window_size() * 0.5)
+        .h_align_center()
+        .max_width(window_width() * 0.8)
+        .color(Color::WHITE)
+        .size(20.0);
+
+    draw.text("Your mision is to reach 100% influence (blue) before it drops to zero! Move the camera with WASD, and use the left mouse button to guide the good souls to follow you, turning other souls blue. Keep an eye on your spiritual energy to unlock blessings (top-left) for extra perks. Manage the balance between light and shadow, and don’t let your influence fade away!")
+        .anchor(vec2(0.5, 1.0))
+        .translate(vec2(window_width() * 0.5, window_height() - 50.0))
+        .h_align_center()
+        .max_width(window_width() * 0.6)
+        .color(Color::GRAY)
+        .size(12.0);
+
+    draw.text("@Nazariglez")
+        .anchor(vec2(1.0, 1.0))
+        .position(window_size() - 20.0)
+        .size(12.0)
+        .color(ETERNAL_COLOR);
+
+    gfx::render_to_frame(&draw).unwrap();
+
+    if !keys_pressed().is_empty() {
+        state.mode = Mode::Playing;
+        init_spawn(state);
+    }
 }
