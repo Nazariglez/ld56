@@ -45,6 +45,9 @@ pub struct State {
 
     // res
     pub res: Resources,
+
+    // visual
+    pub energy_positions: Vec<Vec2>,
 }
 
 impl State {
@@ -76,6 +79,8 @@ impl State {
             bad_progress: 0.0,
 
             res,
+
+            energy_positions: Vec::with_capacity(200),
         })
     }
 
@@ -156,6 +161,8 @@ impl State {
                 if s.energy_timer <= 0.0 {
                     s.energy_timer = self.params.energy_time;
                     self.energy += self.params.energy_amount;
+                    self.energy_positions
+                        .push(self.camera.local_to_screen(s.pos));
                 }
             }
         });
@@ -249,13 +256,13 @@ fn radial_random_pos(radius: f32) -> Vec2 {
     vec2(r * angle.cos(), r * angle.sin())
 }
 
-fn move_towards(from: Vec2, to: Vec2, speed: f32) -> Vec2 {
+pub fn move_towards(from: Vec2, to: Vec2, speed: f32) -> Vec2 {
     let direction = (to - from).normalize_or_zero();
     let movement = direction * speed;
     from + movement
 }
 
-fn is_close(entity_pos: Vec2, p2: Vec2, radius: f32) -> bool {
+pub fn is_close(entity_pos: Vec2, p2: Vec2, radius: f32) -> bool {
     let dist = entity_pos.distance_squared(p2);
     let r = radius * radius;
     dist <= r

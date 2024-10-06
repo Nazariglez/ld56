@@ -5,7 +5,7 @@ mod state;
 
 use crate::params::Blessing;
 use crate::souls::SoulKind;
-use crate::state::{State, MAP_SIZE, RESOLUTION};
+use crate::state::{is_close, move_towards, State, MAP_SIZE, RESOLUTION};
 use rkit::app::{window_height, window_size, window_width};
 use rkit::draw::{create_draw_2d, Transform2D};
 use rkit::gfx::Color;
@@ -36,6 +36,8 @@ fn setup() -> State {
 fn update(state: &mut State) {
     state.update();
 
+    let dt = time::delta_f32();
+    let elapsed = time::elapsed_f32();
     let win_size = window_size();
     let mouse_pos = mouse_position();
 
@@ -57,6 +59,21 @@ fn update(state: &mut State) {
     draw.rect(Vec2::ZERO, MAP_SIZE)
         .stroke_color(Color::GRAY.with_alpha(0.5))
         .stroke(4.0);
+
+    let alpha = if state.is_guiding { 0.3 } else { 0.04 };
+    let circle_size = state.params.sacred_radius.floor() * 2.0;
+    let elapsed_time = elapsed.sin().abs();
+    let min_size = circle_size * 0.8;
+    let animated_size = min_size + (circle_size - min_size) * elapsed_time;
+
+    draw.circle(state.params.sacred_radius)
+        .alpha(0.01)
+        .position(state.mouse_pos - state.params.sacred_radius);
+    draw.image(&state.res.circle)
+        .alpha(alpha)
+        .size(Vec2::splat(animated_size))
+        .anchor(Vec2::splat(0.5))
+        .translate(state.mouse_pos);
 
     state.souls.iter().for_each(|s| {
         // skip if it's not visible
@@ -99,26 +116,17 @@ fn update(state: &mut State) {
         draw.image(&state.res.shirt).position(pos).color(color);
     });
 
-    let (color, alpha) = if state.is_guiding {
-        (Color::MAGENTA, 0.3)
-    } else {
-        (Color::YELLOW, 0.05)
-    };
-    draw.circle(state.params.sacred_radius)
-        .color(color)
-        .alpha(alpha)
-        .position(state.mouse_pos - state.params.sacred_radius);
-
     gfx::render_to_frame(&draw).unwrap();
 
     // debug
     let mut draw = create_draw_2d();
 
     // spiritual energy
+    let spiritual_energy_pos = vec2(win_size.x - 20.0, 20.0);
     draw.image(&state.res.souls_icon)
         .anchor(vec2(1.0, 0.0))
         .scale(Vec2::splat(2.0))
-        .translate(vec2(win_size.x - 20.0, 20.0));
+        .translate(spiritual_energy_pos);
 
     draw.text(&state.energy.to_string())
         .anchor(vec2(1.0, 0.5))
@@ -302,6 +310,20 @@ fn update(state: &mut State) {
     .h_align_center()
     .translate(vec2(win_size.x * 0.5, 60.0))
     .size(8.0);
+
+    // spiritual energy movement
+    let spirit_target = spiritual_energy_pos + vec2(-16.0, 16.0);
+    state.energy_positions.iter_mut().for_each(|p| {
+        draw.image(&state.res.souls_icon)
+            .anchor(Vec2::splat(0.5))
+            .translate(*p);
+
+        *p = move_towards(*p, spirit_target, 800.0 * dt);
+    });
+
+    state
+        .energy_positions
+        .retain(|p| !is_close(*p, spirit_target, 16.0));
 
     draw.text(&format!(
         "FPS: {:.0}, ms: {:.0}",
