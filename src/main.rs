@@ -144,11 +144,6 @@ fn update(state: &mut State) {
         .scale(Vec2::splat(2.0))
         .translate(spiritual_energy_pos);
 
-    draw.text(&state.energy.to_string())
-        .anchor(vec2(1.0, 0.5))
-        .translate(vec2(win_size.x - 60.0, 20.0 + 16.0))
-        .size(16.0);
-
     // progress bar
     let scale = 2.0;
     let t_size = state.res.bar.size();
@@ -183,15 +178,19 @@ fn update(state: &mut State) {
         .translate(vec2(xx, 20.0))
         .scale(Vec2::splat(2.0));
 
-    draw.text(&format!("{:.0}%", state.good_progress * 100.0))
-        .anchor(vec2(1.0, 0.5))
-        .translate(vec2(xx - 6.0, 20.0 + 16.0))
-        .size(12.0);
+    // spiritual energy movement
+    let spirit_target = spiritual_energy_pos + vec2(-16.0, 16.0);
+    state.energy_positions.iter_mut().for_each(|p| {
+        draw.image(&state.res.souls_icon)
+            .anchor(Vec2::splat(0.5))
+            .translate(*p);
 
-    draw.text(&format!("{:.0}%", state.bad_progress * 100.0))
-        .anchor(vec2(0.0, 0.5))
-        .translate(vec2(xx + t_size.x * scale + 6.0, 20.0 + 16.0))
-        .size(12.0);
+        *p = move_towards(*p, spirit_target, 800.0 * dt);
+    });
+
+    state
+        .energy_positions
+        .retain(|p| !is_close(*p, spirit_target, 16.0));
 
     // blessings
     let mut tooltip: Option<(Blessing, Vec2)> = None;
@@ -238,7 +237,13 @@ fn update(state: &mut State) {
             .translate(pos)
             .alpha(alpha)
             .color(color);
+    });
 
+    Blessing::iter().enumerate().for_each(|(i, b)| {
+        let grid = vec2((i % grid_size) as f32, (i / grid_size) as f32);
+        let pos = offset + padding * grid;
+
+        let lvl = state.blessings.level(&b);
         if lvl != 0 {
             draw.text(&lvl.to_string())
                 .size(14.0)
@@ -247,6 +252,31 @@ fn update(state: &mut State) {
                 .anchor(Vec2::splat(0.5));
         }
     });
+
+    draw.text(&state.energy.to_string())
+        .anchor(vec2(1.0, 0.5))
+        .translate(vec2(win_size.x - 60.0, 20.0 + 16.0))
+        .size(16.0);
+
+    draw.text(&format!("{:.0}%", state.good_progress * 100.0))
+        .anchor(vec2(1.0, 0.5))
+        .translate(vec2(xx - 6.0, 20.0 + 16.0))
+        .size(12.0);
+
+    draw.text(&format!("{:.0}%", state.bad_progress * 100.0))
+        .anchor(vec2(0.0, 0.5))
+        .translate(vec2(xx + t_size.x * scale + 6.0, 20.0 + 16.0))
+        .size(12.0);
+
+    draw.text(&format!(
+        "Next wave: {:.1}s ({} souls)",
+        state.spawn_timer - state.params.slow_spawn_time,
+        state.spawn_num - state.params.block_spawn_souls
+    ))
+    .anchor(vec2(0.5, 0.0))
+    .h_align_center()
+    .translate(vec2(win_size.x * 0.5, 60.0))
+    .size(8.0);
 
     if let Some((b, pos)) = tooltip {
         let size = vec2(250.0, 200.0);
@@ -317,37 +347,16 @@ fn update(state: &mut State) {
         }
     }
 
-    draw.text(&format!(
-        "Next wave: {:.1}s ({} souls)",
-        state.spawn_timer - state.params.slow_spawn_time,
-        state.spawn_num - state.params.block_spawn_souls
-    ))
-    .anchor(vec2(0.5, 0.0))
-    .h_align_center()
-    .translate(vec2(win_size.x * 0.5, 60.0))
-    .size(8.0);
-
-    // spiritual energy movement
-    let spirit_target = spiritual_energy_pos + vec2(-16.0, 16.0);
-    state.energy_positions.iter_mut().for_each(|p| {
-        draw.image(&state.res.souls_icon)
-            .anchor(Vec2::splat(0.5))
-            .translate(*p);
-
-        *p = move_towards(*p, spirit_target, 800.0 * dt);
-    });
-
-    state
-        .energy_positions
-        .retain(|p| !is_close(*p, spirit_target, 16.0));
-
-    draw.text(&format!(
-        "FPS: {:.0}, ms: {:.0}",
-        time::fps(),
-        time::delta_f32() * 1000.0
-    ))
-    .position(vec2(10.0, window_height() - 20.0))
-    .size(8.0);
+    #[cfg(debug_assertions)]
+    {
+        draw.text(&format!(
+            "FPS: {:.0}, ms: {:.0}",
+            time::fps(),
+            time::delta_f32() * 1000.0
+        ))
+        .position(vec2(10.0, window_height() - 20.0))
+        .size(6.0);
+    }
 
     gfx::render_to_frame(&draw).unwrap();
 }
