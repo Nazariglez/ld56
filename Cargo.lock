@@ -201,6 +201,7 @@ checksum = "41e67cd8309bbd06cd603a9e693a784ac2e5d1e955f11286e355089fcab3047c"
 [[package]]
 name = "audio"
 version = "0.0.0"
+source = "git+https://github.com/Nazariglez/rkit?rev=5a45f10#5a45f10d4d318621888d1f5f19120bf8f5947d68"
 dependencies = [
  "atomic_refcell",
  "kira",
@@ -502,6 +503,7 @@ dependencies = [
 [[package]]
 name = "core"
 version = "0.0.0"
+source = "git+https://github.com/Nazariglez/rkit?rev=5a45f10#5a45f10d4d318621888d1f5f19120bf8f5947d68"
 dependencies = [
  "arrayvec",
  "atomic_refcell",
@@ -745,6 +747,7 @@ checksum = "f25c0e292a7ca6d6498557ff1df68f32c99850012b6ea401cf8daf771f22ff53"
 [[package]]
 name = "draw"
 version = "0.0.0"
+source = "git+https://github.com/Nazariglez/rkit?rev=5a45f10#5a45f10d4d318621888d1f5f19120bf8f5947d68"
 dependencies = [
  "arrayvec",
  "atomic_refcell",
@@ -1429,6 +1432,7 @@ dependencies = [
 [[package]]
 name = "macros"
 version = "0.0.0"
+source = "git+https://github.com/Nazariglez/rkit?rev=5a45f10#5a45f10d4d318621888d1f5f19120bf8f5947d68"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2228,6 +2232,7 @@ dependencies = [
 [[package]]
 name = "rkit"
 version = "0.1.0"
+source = "git+https://github.com/Nazariglez/rkit?rev=5a45f10#5a45f10d4d318621888d1f5f19120bf8f5947d68"
 dependencies = [
  "audio",
  "core",
@@ -2848,6 +2853,7 @@ checksum = "06abde3611657adf66d383f00b093d7faecc7fa57071cce2578660c9f1010821"
 [[package]]
 name = "utils"
 version = "0.0.0"
+source = "git+https://github.com/Nazariglez/rkit?rev=5a45f10#5a45f10d4d318621888d1f5f19120bf8f5947d68"
 dependencies = [
  "hashbrown 0.14.5",
  "rustc-hash 2.0.0",

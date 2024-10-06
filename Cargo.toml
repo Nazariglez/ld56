@@ -15,11 +15,20 @@ opt-level = 1
 [profile.dev.package."*"]
 opt-level = 3
 
+[dependencies.rkit]
+git = "https://github.com/Nazariglez/rkit"
+rev = "5a45f10"
+default-features = false
+features = [
+    "random",
+    "draw",
+    "draw-default-font",
+    "audio",
+    "webgl"
+]
+
 [dependencies]
 num = "0.4.3"
-rkit = { path = "../rkit", default-features = false, features = [
-    "random", "draw", "draw-default-font", "audio", "webgl"
-] }
 rustc-hash = "2.0.0"
 strum_macros = "0.26.4"
 strum = "0.26.3"
