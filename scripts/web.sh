@@ -1,3 +1,3 @@
 #!/usr/bin/env zsh
 
-trunk build --release --dist docs --minify --public-url ld56
+trunk build --release --dist docs --minify
