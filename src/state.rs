@@ -191,6 +191,7 @@ impl State {
             self.params.karma_change_rate,
             self.params.karma_expire_rate,
             self.params.eternals,
+            &aabb_index,
         );
     }
 
@@ -328,23 +329,49 @@ pub fn update_karma(
     rate: f32,
     expire_rate: f32,
     use_eternals: bool,
+    aabb_index: &StaticAABB2DIndex<f32>,
 ) {
-    // collect karma and apply later (let's please borrow checker for now)
-    let karma = souls
+    let radius_squared = radius * radius;
+
+    // Store karma changes to apply later
+    let karma_updates = souls
         .iter()
-        .map(|soul| {
+        .enumerate()
+        .map(|(i, soul)| {
             let mut conversion = KarmaConversion::Neutral;
 
-            // Eternals cannot be corrupted
+            // Eternals are immune to corruption
             if matches!(soul.kind(), SoulKind::Eternal) {
-                return (soul.karma, conversion);
+                return (i, soul.karma, conversion);
             }
 
             let max_karma = if use_eternals { 6.0 } else { 2.0 };
 
-            let (good_souls, bad_souls) = count_souls(souls, soul.id, soul.pos, radius);
+            let pos = soul.pos;
+            let min = pos - radius;
+            let max = pos + radius;
+            let close_souls = aabb_index.query(min.x, min.y, max.x, max.y);
 
-            // karma decrease slowly or increase if following
+            let mut good_souls = 0;
+            let mut bad_souls = 0;
+
+            // Count good and bad souls in the radius
+            for n in close_souls {
+                if n == i {
+                    continue;
+                }
+
+                let other_soul = &souls[n];
+                if other_soul.pos.distance_squared(pos) <= radius_squared {
+                    match other_soul.kind() {
+                        SoulKind::Shadow => bad_souls += 1,
+                        SoulKind::Luminal if other_soul.is_following => good_souls += 1,
+                        SoulKind::Eternal => good_souls += 1,
+                        _ => {}
+                    }
+                }
+            }
+
             let expiration = expire_rate * dt;
             let mut karma = if soul.is_following {
                 soul.karma + expiration
@@ -352,54 +379,24 @@ pub fn update_karma(
                 soul.karma - expiration
             };
 
-            // update karma
             if bad_souls > good_souls {
-                // shadows have slow rate to compensate expiration time
                 let new_rate = rate * 0.2;
                 karma = (karma - new_rate * dt).max(-2.0);
                 conversion = KarmaConversion::Bad;
             } else if good_souls > bad_souls {
-                // more luminals following will convert faster (50 for 1 extra point)
                 let extra = (good_souls as f32 / 50.0).clamp(0.0, 1.0);
                 let new_rate = rate + extra;
                 karma = (karma + new_rate * dt).min(max_karma);
                 conversion = KarmaConversion::Good;
             }
 
-            (karma.clamp(-2.0, max_karma), conversion)
+            (i, karma.clamp(-2.0, max_karma), conversion)
         })
-        .collect::<Vec<(_, _)>>();
+        .collect::<Vec<_>>();
 
-    // apply collected karma
-    for (i, soul) in souls.iter_mut().enumerate() {
-        soul.karma = karma[i].0;
-        soul.conversion = karma[i].1;
+    // update the karma
+    for (i, new_karma, conversion) in karma_updates {
+        souls[i].karma = new_karma;
+        souls[i].conversion = conversion;
     }
-}
-
-pub fn count_souls(souls: &[Soul], id: u64, pos: Vec2, radius: f32) -> (usize, usize) {
-    let mut good = 0;
-    let mut bad = 0;
-
-    for other_soul in souls {
-        if other_soul.id == id {
-            continue;
-        }
-
-        let dist = other_soul.pos.distance_squared(pos);
-        if dist <= radius * radius {
-            match other_soul.kind() {
-                SoulKind::Shadow => bad += 1,
-
-                // Luminals need to be "praying/following" to count
-                SoulKind::Luminal if other_soul.is_following => good += 1,
-
-                // Eternals always count people don't need to pray
-                SoulKind::Eternal => good += 1,
-                _ => {}
-            }
-        }
-    }
-
-    (good, bad)
 }

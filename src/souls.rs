@@ -1,4 +1,3 @@
-use rand::random;
 use rkit::math::{vec2, Vec2};
 use rkit::random;
 use std::f32::consts::TAU;

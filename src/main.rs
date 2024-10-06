@@ -26,10 +26,10 @@ fn main() -> Result<(), String> {
 
 fn setup() -> State {
     let mut state = State::new().unwrap();
-    state.spawn_souls(20, None);
+    state.spawn_souls(30, None);
     state.spawn_souls(50, Some(SoulKind::Neutral));
-    state.spawn_souls(5, Some(SoulKind::Luminal));
-    state.spawn_souls(5, Some(SoulKind::Shadow));
+    state.spawn_souls(8, Some(SoulKind::Luminal));
+    state.spawn_souls(8, Some(SoulKind::Shadow));
     state
 }
 
