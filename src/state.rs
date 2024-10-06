@@ -1,7 +1,6 @@
 use crate::params::{Blessing, Blessings, Params, PARAMS_END, PARAMS_START};
 use crate::resources::Resources;
 use crate::souls::{KarmaConversion, Soul, SoulKind, VisualData};
-use num::Zero;
 use rkit::app::{window_height, window_size};
 use rkit::draw::{Camera2D, Draw2D, ScreenMode};
 use rkit::input::{
@@ -11,6 +10,7 @@ use rkit::input::{
 use rkit::math::{vec2, Vec2};
 use rkit::random;
 use rkit::time;
+use static_aabb2d_index::{StaticAABB2DIndex, StaticAABB2DIndexBuilder};
 use std::f32::consts::TAU;
 use strum::IntoEnumIterator;
 
@@ -137,6 +137,8 @@ impl State {
         let mut good = 0;
         let mut bad = 0;
 
+        let mut aabb_builder = StaticAABB2DIndexBuilder::<f32>::new(self.souls.len());
+
         // update entities positions
         self.souls.iter_mut().for_each(|s| {
             if s.is_good() {
@@ -169,8 +171,13 @@ impl State {
                         .push(self.camera.local_to_screen(s.pos));
                 }
             }
+
+            aabb_builder.add(s.pos.x, s.pos.y, s.pos.x + 16.0, s.pos.y + 16.0);
         });
-        avoid_overlap(&mut self.souls, GRID_SIZE);
+
+        let aabb_index = aabb_builder.build().unwrap();
+
+        avoid_overlap(&mut self.souls, GRID_SIZE, &aabb_index);
 
         // update progress
         self.good_progress = good as f32 / self.souls.len() as f32;
@@ -280,19 +287,27 @@ pub fn is_close(entity_pos: Vec2, p2: Vec2, radius: f32) -> bool {
     dist <= r
 }
 
-fn avoid_overlap(souls: &mut [Soul], min_distance: f32) {
+fn avoid_overlap(souls: &mut [Soul], min_distance: f32, aabb_index: &StaticAABB2DIndex<f32>) {
     const REGULAR_FORCE_MULT: f32 = 0.5;
     const FOLLOWING_FORCE_MUL: f32 = 1.0;
 
     for i in 0..souls.len() {
-        for j in i + 1..souls.len() {
-            let p1 = souls[i].pos;
-            let p2 = souls[j].pos;
+        let p1 = souls[i].pos;
+        let min = p1 - min_distance;
+        // TODO this size is hardcoded and don't check anchors...
+        let max = p1 + 16.0 + min_distance;
+        let close_souls = aabb_index.query(min.x, min.y, max.x, max.y);
+        for n in close_souls {
+            if i == n {
+                continue;
+            }
+
+            let p2 = souls[n].pos;
             let distance = p1.distance(p2);
             if distance < min_distance {
                 let overlap = min_distance - distance;
                 let direction = (p1 - p2).normalize_or_zero();
-                let is_following = souls[i].is_following || souls[j].is_following;
+                let is_following = souls[i].is_following || souls[n].is_following;
                 let force_mul = if is_following {
                     FOLLOWING_FORCE_MUL
                 } else {
@@ -300,7 +315,7 @@ fn avoid_overlap(souls: &mut [Soul], min_distance: f32) {
                 };
 
                 souls[i].pos += direction * (overlap * force_mul);
-                souls[j].pos -= direction * (overlap * force_mul);
+                souls[n].pos -= direction * (overlap * force_mul);
             }
         }
     }
