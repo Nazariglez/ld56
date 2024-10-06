@@ -15,6 +15,8 @@ pub struct Resources {
     pub eternal: Sprite,
     pub shirt: Sprite,
     pub circle: Sprite,
+    pub karma_circle: Sprite,
+    pub karma_white: Sprite,
 }
 
 impl Resources {
@@ -54,6 +56,8 @@ impl Resources {
 
         let tile = base.clone_with_frame(Rect::new(grid_size * vec2(0.0, 4.0), grid_size * 5.0));
         let circle = base.clone_with_frame(Rect::new(grid_size * vec2(5.0, 4.0), grid_size * 2.0));
+        let karma_circle = base.clone_with_frame(Rect::new(grid_size * vec2(6.0, 8.0), grid_size));
+        let karma_white = base.clone_with_frame(Rect::new(grid_size * vec2(6.0, 7.0), grid_size));
 
         Ok(Self {
             souls_icon,
@@ -67,6 +71,8 @@ impl Resources {
             eternal,
             shirt,
             circle,
+            karma_circle,
+            karma_white,
         })
     }
 }

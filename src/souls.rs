@@ -42,6 +42,13 @@ impl VisualData {
     }
 }
 
+#[derive(Copy, Clone)]
+pub enum KarmaConversion {
+    Neutral,
+    Good,
+    Bad,
+}
+
 pub struct Soul {
     pub id: u64,
     pub karma: f32,
@@ -49,6 +56,7 @@ pub struct Soul {
     pub is_following: bool,
     pub energy_timer: f32,
     pub visuals: VisualData,
+    pub conversion: KarmaConversion,
 }
 
 impl PartialEq for Soul {

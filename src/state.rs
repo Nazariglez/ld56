@@ -1,6 +1,6 @@
 use crate::params::{Blessing, Blessings, Params, PARAMS_END, PARAMS_START};
 use crate::resources::Resources;
-use crate::souls::{Soul, SoulKind, VisualData};
+use crate::souls::{KarmaConversion, Soul, SoulKind, VisualData};
 use rkit::app::{window_height, window_size};
 use rkit::draw::{Camera2D, Draw2D, ScreenMode};
 use rkit::input::{
@@ -106,6 +106,7 @@ impl State {
                 is_following: false,
                 energy_timer: self.params.energy_time,
                 visuals: VisualData::new(),
+                conversion: KarmaConversion::Neutral,
             });
             self.ids += 1;
         }
@@ -185,7 +186,7 @@ impl State {
 
     pub fn unlock_blessing(&mut self, b: Blessing) -> bool {
         let lvl = self.blessings.level(&b);
-        let price = b.price(lvl + 1);
+        let price = b.price(lvl);
         let can_unlock = self.blessings.can_unlock(b) && self.energy >= price;
         if can_unlock {
             let v = self.blessings.unlock(b);
@@ -306,9 +307,11 @@ pub fn update_karma(
     let karma = souls
         .iter()
         .map(|soul| {
+            let mut conversion = KarmaConversion::Neutral;
+
             // Eternals cannot be corrupted
             if matches!(soul.kind(), SoulKind::Eternal) {
-                return soul.karma;
+                return (soul.karma, conversion);
             }
 
             let max_karma = if use_eternals { 6.0 } else { 2.0 };
@@ -328,20 +331,23 @@ pub fn update_karma(
                 // shadows have slow rate to compensate expiration time
                 let new_rate = rate * 0.2;
                 karma = (karma - new_rate * dt).max(-2.0);
+                conversion = KarmaConversion::Bad;
             } else if good_souls > bad_souls {
                 // more luminals following will convert faster (50 for 1 extra point)
                 let extra = (good_souls as f32 / 50.0).clamp(0.0, 1.0);
                 let new_rate = rate + extra;
                 karma = (karma + new_rate * dt).min(max_karma);
+                conversion = KarmaConversion::Good;
             }
 
-            karma.clamp(-2.0, max_karma)
+            (karma.clamp(-2.0, max_karma), conversion)
         })
-        .collect::<Vec<_>>();
+        .collect::<Vec<(_, _)>>();
 
     // apply collected karma
     for (i, soul) in souls.iter_mut().enumerate() {
-        soul.karma = karma[i];
+        soul.karma = karma[i].0;
+        soul.conversion = karma[i].1;
     }
 }
 

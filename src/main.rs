@@ -4,7 +4,7 @@ mod souls;
 mod state;
 
 use crate::params::Blessing;
-use crate::souls::SoulKind;
+use crate::souls::{KarmaConversion, SoulKind};
 use crate::state::{is_close, move_towards, State, MAP_SIZE, RESOLUTION};
 use rkit::app::{window_height, window_size, window_width};
 use rkit::draw::{create_draw_2d, Transform2D};
@@ -112,6 +112,22 @@ fn update(state: &mut State) {
             .alpha(0.3);
 
         // entity
+
+        let conversion_color = match s.conversion {
+            KarmaConversion::Neutral => None,
+            KarmaConversion::Good => (!s.is_good()).then_some(LUMINAL_COLOR),
+            KarmaConversion::Bad => (!s.is_bad()).then_some(SHADOW_COLOR),
+        };
+
+        if let Some(cc) = conversion_color {
+            draw.image(&state.res.karma_circle)
+                .anchor(Vec2::splat(0.5))
+                .scale(Vec2::splat(1.4))
+                .translate(pos + 8.0)
+                .alpha(0.5)
+                .color(cc);
+        }
+
         draw.image(tex).position(pos).alpha(alpha);
         draw.image(&state.res.shirt).position(pos).color(color);
     });
@@ -187,7 +203,7 @@ fn update(state: &mut State) {
         let pos = offset + padding * grid;
 
         let lvl = state.blessings.level(&b);
-        let price = b.price(lvl + 1);
+        let price = b.price(lvl);
         let can_unlock = state.blessings.can_unlock(b);
 
         let alpha = if lvl == 0 && can_unlock {
