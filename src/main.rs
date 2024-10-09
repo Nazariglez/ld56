@@ -440,15 +440,17 @@ pub fn draw_menu(state: &mut State) {
 }
 
 fn draw_end(winning: bool, state: &mut State) {
-    let (win_text, color) = if winning {
+    let (win_text, color, v_offset) = if winning {
         (
             "You've won!\nThe light of karma shines bright",
             ETERNAL_COLOR,
+            40.0,
         )
     } else {
         (
             "The shadows have overwhelmed you.\nYour influence has faded into darkness",
             SHADOW_COLOR,
+            70.0,
         )
     };
 
@@ -489,7 +491,7 @@ fn draw_end(winning: bool, state: &mut State) {
         .h_align_center()
         .max_width(window_width() * 0.6)
         .anchor(Vec2::splat(0.5))
-        .translate(window_size() * 0.5);
+        .translate(window_size() * 0.5 + Vec2::Y * v_offset);
 
     draw.text("Press SPACE to RESTART")
         .size(20.0)

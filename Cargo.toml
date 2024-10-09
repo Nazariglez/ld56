@@ -17,7 +17,7 @@ opt-level = 3
 
 [dependencies.rkit]
 git = "https://github.com/Nazariglez/rkit"
-rev = "5a45f10"
+rev = "3ca8267"
 default-features = false
 features = [
     "random",
