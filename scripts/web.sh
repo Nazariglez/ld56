@@ -1,3 +1,3 @@
 #!/usr/bin/env zsh
 
-trunk build --release --dist web --minify --public-url ./
+trunk build --release --dist docs --minify --public-url ./
