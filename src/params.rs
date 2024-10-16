@@ -1,4 +1,5 @@
 use rustc_hash::FxHashMap;
+use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 
 #[derive(Copy, Clone, Debug)]
@@ -151,6 +152,14 @@ impl Blessings {
     pub fn new() -> Self {
         let mut list = FxHashMap::default();
         list.insert(Blessing::CircleOfGrace, 1);
+        Self { list }
+    }
+
+    pub fn max_level() -> Self {
+        let mut list = FxHashMap::default();
+        Blessing::iter().for_each(|b| {
+            list.insert(b, 10);
+        });
         Self { list }
     }
 

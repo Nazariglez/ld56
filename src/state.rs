@@ -22,7 +22,7 @@ pub enum Mode {
     Defeat,
 }
 
-pub const MAP_SIZE: Vec2 = Vec2::splat(1000.0);
+pub const MAP_SIZE: Vec2 = Vec2::splat(1500.0);
 // pub const RESOLUTION: Vec2 = Vec2::new(960.0, 540.0);
 pub const RESOLUTION: Vec2 = Vec2::new(640.0, 360.0);
 const CAMERA_SPEED: f32 = 120.0;
@@ -68,7 +68,7 @@ impl State {
     pub fn new() -> Result<Self, String> {
         let camera = Camera2D::new(window_size(), ScreenMode::AspectFit(RESOLUTION));
         let position = MAP_SIZE * 0.5;
-        let blessings = Blessings::new();
+        let blessings = Blessings::max_level();
         let params = blessings.params();
         let res = Resources::new()?;
 
@@ -257,6 +257,8 @@ impl State {
         //     let zoom = (self.camera.zoom() + w_dt);
         //     self.camera.set_zoom(zoom);
         // }
+
+        self.camera.set_zoom(0.4);
 
         self.camera.update();
         self.mouse_pos = self.camera.screen_to_local(mouse_position());

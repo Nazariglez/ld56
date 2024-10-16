@@ -7,7 +7,7 @@ use crate::params::Blessing;
 use crate::souls::{KarmaConversion, SoulKind};
 use crate::state::{is_close, move_towards, Mode, State, MAP_SIZE, RESOLUTION};
 use rkit::app::{window_height, window_size, window_width, WindowConfig};
-use rkit::draw::{create_draw_2d, Draw2D, Transform2D};
+use rkit::draw::{create_draw_2d, Draw2D, text_metrics, Transform2D};
 use rkit::gfx::Color;
 use rkit::input::{
     is_key_pressed, is_mouse_btn_pressed, keys_pressed, mouse_position, KeyCode, MouseButton,
@@ -32,7 +32,7 @@ fn main() -> Result<(), String> {
     };
     rkit::init_with(setup)
         .with_window(win)
-        .on_update(update)
+        .update(update)
         .run()
 }
 
@@ -41,10 +41,11 @@ fn setup() -> State {
 }
 
 fn init_spawn(state: &mut State) {
-    state.spawn_souls(30, None);
+    state.spawn_souls(4000, None);
     state.spawn_souls(50, Some(SoulKind::Neutral));
-    state.spawn_souls(8, Some(SoulKind::Luminal));
-    state.spawn_souls(8, Some(SoulKind::Shadow));
+    state.spawn_souls(2000, Some(SoulKind::Luminal));
+    state.spawn_souls(800, Some(SoulKind::Eternal));
+    state.spawn_souls(2800, Some(SoulKind::Shadow));
 }
 
 fn update(state: &mut State) {
@@ -153,6 +154,8 @@ fn update(state: &mut State) {
     });
 
     gfx::render_to_frame(&draw).unwrap();
+
+    let stats1 = draw.stats();
 
     // debug
     let mut draw = create_draw_2d();
@@ -370,18 +373,38 @@ fn update(state: &mut State) {
         }
     }
 
-    #[cfg(debug_assertions)]
+    let stats2 = draw.stats();
+
+    let txt = format!(
+        "FPS: {:.0}, ms: {:.0}\nSouls: {}\nElements: {}, Draw Calls: {}",
+        time::fps(),
+        time::delta_f32() * 1000.0,
+        state.souls.len(),
+        stats1.elements + stats2.elements,
+        stats1.batches + stats2.batches,
+    );
+    let s = 16.0;
+    let metrics = text_metrics(&txt)
+        .size(s)
+        .measure();
+
+    let p = vec2(10.0, window_height() - 20.0);
+
+    // #[cfg(debug_assertions)]
     {
-        draw.text(&format!(
-            "FPS: {:.0}, ms: {:.0}",
-            time::fps(),
-            time::delta_f32() * 1000.0
-        ))
+        draw.rect(Vec2::ZERO, metrics.size)
+            .color(Color::BLACK.with_alpha(0.9))
+            .anchor(vec2(0.0, 1.0))
+            .translate(p);
+
+        draw.text(&txt)
         .position(vec2(10.0, window_height() - 20.0))
-        .size(6.0);
+            .anchor(vec2(0.0, 1.0))
+        .size(s);
     }
 
     gfx::render_to_frame(&draw).unwrap();
+
 
     match state.mode {
         Mode::Win => draw_end(true, state),
