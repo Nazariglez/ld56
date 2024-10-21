@@ -7,7 +7,7 @@ use crate::params::Blessing;
 use crate::souls::{KarmaConversion, SoulKind};
 use crate::state::{is_close, move_towards, Mode, State, MAP_SIZE, RESOLUTION};
 use rkit::app::{window_height, window_size, window_width, WindowConfig};
-use rkit::draw::{create_draw_2d, Draw2D, text_metrics, Transform2D};
+use rkit::draw::{create_draw_2d, text_metrics, Draw2D, Transform2D};
 use rkit::gfx::Color;
 use rkit::input::{
     is_key_pressed, is_mouse_btn_pressed, keys_pressed, mouse_position, KeyCode, MouseButton,
@@ -23,17 +23,14 @@ const ETERNAL_COLOR: Color = Color::rgb(1.0, 0.596, 0.171);
 const NEUTRAL_COLOR: Color = Color::WHITE;
 
 fn main() -> Result<(), String> {
-    let win = WindowConfig {
-        title: "LD56 - Karma Keepers".to_string(),
-        size: uvec2(640, 512),
-        vsync: true,
-        resizable: true,
-        ..WindowConfig::default()
-    };
-    rkit::init_with(setup)
-        .with_window(win)
-        .update(update)
-        .run()
+    let win = WindowConfig::default()
+        .title("LD56 - Karma Keepers")
+        .resizable(true)
+        .vsync(true)
+        .size(640, 512)
+        .pixelated(true);
+
+    rkit::init_with(setup).with_window(win).update(update).run()
 }
 
 fn setup() -> State {
@@ -384,9 +381,7 @@ fn update(state: &mut State) {
         stats1.batches + stats2.batches,
     );
     let s = 16.0;
-    let metrics = text_metrics(&txt)
-        .size(s)
-        .measure();
+    let metrics = text_metrics(&txt).size(s).measure();
 
     let p = vec2(10.0, window_height() - 20.0);
 
@@ -398,13 +393,12 @@ fn update(state: &mut State) {
             .translate(p);
 
         draw.text(&txt)
-        .position(vec2(10.0, window_height() - 20.0))
+            .position(vec2(10.0, window_height() - 20.0))
             .anchor(vec2(0.0, 1.0))
-        .size(s);
+            .size(s);
     }
 
     gfx::render_to_frame(&draw).unwrap();
-
 
     match state.mode {
         Mode::Win => draw_end(true, state),

@@ -66,7 +66,9 @@ pub struct State {
 
 impl State {
     pub fn new() -> Result<Self, String> {
-        let camera = Camera2D::new(window_size(), ScreenMode::AspectFit(RESOLUTION));
+        let mut camera = Camera2D::new(window_size(), ScreenMode::AspectFit(RESOLUTION));
+        camera.set_pixel_perfect(true);
+
         let position = MAP_SIZE * 0.5;
         let blessings = Blessings::max_level();
         let params = blessings.params();
